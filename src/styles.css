@@ -496,6 +496,14 @@ input[type=range] {
   margin-top: 6px;
 }
 .hint { font-size: 10.5px; color: var(--muted); margin-top: 10px; line-height: 1.45; }
+.hint code {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--teal);
+  background: rgba(34, 211, 200, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
 
 /* ============================================================
    SHEET (LIGHT paper — prints clean)

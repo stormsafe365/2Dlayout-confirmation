@@ -2,7 +2,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import useStore from "../store";
 import { TYPES } from "../constants";
-import { clamp, ft, round } from "../format";
+import { clamp, ft, INCH, round } from "../format";
 import {
   BARH, barGeom, computeGeo, dimChain, wallLen,
   type Geo,
@@ -79,7 +79,7 @@ export default function Plan() {
         op.wall === "left" || op.wall === "right"
           ? (p.x - geo.oX) / geo.scale - op.w / 2
           : (p.y - geo.oY) / geo.scale - op.w / 2;
-      o = clamp(round(o, 0.5), 0, wl - op.w);
+      o = clamp(round(o, INCH), 0, wl - op.w);
       if (o !== op.o) {
         update(op.id, { o });
         setDrag((d) => (d ? { ...d, moved: true } : d));

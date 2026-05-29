@@ -1,6 +1,7 @@
+import { useEffect, useState } from "react";
 import useStore from "../store";
 import { TYPES, WALLS } from "../constants";
-import { ft } from "../format";
+import { clamp, ft, INCH, parseFt } from "../format";
 import { wallLen } from "../geometry";
 import type { OpeningTypeKey, WallKey } from "../types";
 
@@ -58,52 +59,110 @@ export default function Editor() {
       </div>
 
       <div className="g2">
-        <div className="fld">
-          <label>Width</label>
-          <div className="inp">
-            <input
-              type="number"
-              min={0.5}
-              max={wl}
-              step={0.5}
-              value={+op.w.toFixed(3)}
-              onChange={(e) => update(op.id, { w: +e.target.value || 1 })}
-            />
-            <span className="unit">ft</span>
-          </div>
-        </div>
-        <div className="fld">
-          <label>Height</label>
-          <div className="inp">
-            <input
-              type="number"
-              min={0.5}
-              max={eave}
-              step={0.5}
-              value={+op.h.toFixed(3)}
-              onChange={(e) => update(op.id, { h: +e.target.value || 1 })}
-            />
-            <span className="unit">ft</span>
-          </div>
-        </div>
+        <FtInchField
+          label="Width"
+          value={op.w}
+          min={0.5}
+          max={wl}
+          onCommit={(v) => update(op.id, { w: v })}
+        />
+        <FtInchField
+          label="Height"
+          value={op.h}
+          min={0.5}
+          max={eave}
+          onCommit={(v) => update(op.id, { h: v })}
+        />
       </div>
 
       <div className="fld">
         <label>
-          Offset — <span>{ft(op.o)}</span> from {WALLS[op.wall].ref} corner
-          {" "}(max {ft(maxO)})
+          Offset from {WALLS[op.wall].ref} corner <span>(max {ft(maxO)})</span>
         </label>
+        <FtInchField
+          value={op.o}
+          min={0}
+          max={maxO}
+          onCommit={(v) => update(op.id, { o: v })}
+          showSuffix
+        />
         <input
           type="range"
           min={0}
           max={maxO}
-          step={0.5}
+          step={INCH}
           value={op.o}
           onChange={(e) => update(op.id, { o: +e.target.value })}
+          aria-label="Offset slider"
         />
       </div>
 
-      <p className="hint">Drag the opening directly on the plan to reposition it.</p>
+      <p className="hint">
+        Type any length as <code>2'3"</code>, <code>2.25</code>, or <code>27"</code> — or drag the
+        opening directly on the plan.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Text input that accepts a length in feet/inches notation and commits a
+ * decimal-feet number on blur or Enter. Snaps to the nearest inch.
+ */
+function FtInchField({
+  label, value, min, max, onCommit, showSuffix = false,
+}: {
+  label?: string;
+  value: number;
+  min: number;
+  max: number;
+  onCommit: (v: number) => void;
+  showSuffix?: boolean;
+}) {
+  const [text, setText] = useState(ft(value));
+  // External value changed (drag, slider) — refresh the display.
+  useEffect(() => { setText(ft(value)); }, [value]);
+
+  const commit = () => {
+    const parsed = parseFt(text);
+    if (!Number.isFinite(parsed)) { setText(ft(value)); return; }
+    // snap to nearest inch and clamp
+    const snapped = Math.round(parsed * 12) / 12;
+    const clamped = clamp(snapped, min, max);
+    if (clamped !== value) onCommit(clamped);
+    setText(ft(clamped));
+  };
+
+  const inputEl = (
+    <input
+      type="text"
+      inputMode="text"
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur();
+        if (e.key === "Escape") { setText(ft(value)); (e.currentTarget as HTMLInputElement).blur(); }
+      }}
+      spellCheck={false}
+    />
+  );
+
+  if (!label) {
+    return (
+      <div className="inp">
+        {inputEl}
+        {showSuffix && <span className="unit">ft′in″</span>}
+      </div>
+    );
+  }
+  return (
+    <div className="fld">
+      <label>{label}</label>
+      <div className="inp">
+        {inputEl}
+        <span className="unit">ft′in″</span>
+      </div>
     </div>
   );
 }

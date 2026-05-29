@@ -16,6 +16,33 @@ export function ft(v: number): string {
   return i === 0 ? `${ff}'` : `${ff}'${i}"`;
 }
 
+/** One inch in feet. Used for snap precision. */
+export const INCH = 1 / 12;
+
+/**
+ * Parse a length string in feet/inches notation to a decimal-feet number.
+ * Accepts:  `2'3"`  `2' 3"`  `2'3`  `2'`  `27"`  `2.25`  `27`
+ * Plain numbers are treated as feet.
+ * Returns NaN if it can't parse.
+ */
+export function parseFt(input: string): number {
+  const s = (input || "").trim();
+  if (!s) return NaN;
+  // 2'3" or 2'3 or 2' 3
+  let m = s.match(/^(-?\d+(?:\.\d+)?)\s*'\s*(\d+(?:\.\d+)?)\s*"?$/);
+  if (m) return +m[1] + +m[2] / 12;
+  // 2'
+  m = s.match(/^(-?\d+(?:\.\d+)?)\s*'$/);
+  if (m) return +m[1];
+  // 27" (inches only)
+  m = s.match(/^(\d+(?:\.\d+)?)\s*"$/);
+  if (m) return +m[1] / 12;
+  // 2.25 or 27 — treat as feet
+  m = s.match(/^(-?\d+(?:\.\d+)?)$/);
+  if (m) return +m[1];
+  return NaN;
+}
+
 export function escapeHtml(s: string): string {
   return (s + "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]!));
 }
