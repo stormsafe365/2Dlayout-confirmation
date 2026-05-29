@@ -1,18 +1,18 @@
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
 import useStore from "../store";
 import { TYPES } from "../constants";
 import { ft } from "../format";
 import type { OpeningTypeKey } from "../types";
 import Editor from "./Editor";
 
-const fade = {
+const fade: Variants = {
   hidden: { opacity: 0, y: 8 },
   show: (i: number) => ({
     opacity: 1,
     y: 0,
     transition: {
       delay: 0.06 + i * 0.04, // 40ms cascade — Emil: 30–80ms stagger window
-      type: "spring",
+      type: "spring" as const,
       duration: 0.4,
       bounce: 0.18,
     },
