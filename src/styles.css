@@ -670,6 +670,59 @@ input[type=range] {
 .diagram svg .otile.dragging { cursor: grabbing; }
 .diagram svg .otile:hover .ohit { filter: brightness(1.08); }
 
+/* truss verification status pill (builder aid, never printed) */
+.truss-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+}
+.truss-status .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.truss-status.ok {
+  color: var(--success);
+  background: rgba(52, 211, 153, 0.1);
+  border-color: rgba(52, 211, 153, 0.3);
+}
+.truss-status.ok .dot { background: var(--success); }
+.truss-status.warn {
+  color: var(--danger);
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.35);
+}
+.truss-status.warn .dot { background: var(--danger); }
+
+/* framing section helpers */
+.auto-tag {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--teal-dim);
+  background: var(--teal-glow);
+  vertical-align: middle;
+}
+.framing-info { display: flex; flex-direction: column; }
+.framing-note {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--muted);
+  align-self: center;
+}
+
 .legend {
   display: flex;
   flex-wrap: wrap;

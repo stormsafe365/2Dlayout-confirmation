@@ -11,6 +11,8 @@ export default function Tweaks() {
   const toggleDims = useStore((s) => s.toggleDims);
   const blueprint = useStore((s) => s.blueprint);
   const toggleBlueprint = useStore((s) => s.toggleBlueprint);
+  const showTrusses = useStore((s) => s.showTrusses);
+  const toggleTrusses = useStore((s) => s.toggleTrusses);
 
   const density = useStore((s) => s.density);
   const setDensity = useStore((s) => s.setDensity);
@@ -116,6 +118,14 @@ export default function Tweaks() {
                 className={`toggle ${blueprint ? "on" : ""}`}
                 onClick={toggleBlueprint}
                 aria-pressed={blueprint}
+              />
+            </div>
+            <div className="tw-row" style={{ marginTop: 10 }}>
+              <span className="tw-l" style={{ margin: 0 }}>Show trusses</span>
+              <button
+                className={`toggle ${showTrusses ? "on" : ""}`}
+                onClick={toggleTrusses}
+                aria-pressed={showTrusses}
               />
             </div>
 

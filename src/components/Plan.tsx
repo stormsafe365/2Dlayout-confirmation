@@ -7,6 +7,7 @@ import {
   BARH, barGeom, computeGeo, dimChain, wallLen,
   type Geo,
 } from "../geometry";
+import { analyzeTrusses } from "../framing";
 import type { Opening, WallKey } from "../types";
 
 interface Palette {
@@ -16,6 +17,7 @@ interface Palette {
   dimLine: string; dimExt: string;
   dimText: string; dimTextOp: string;
   tagFill: string; tileLbl: string; hollow: string;
+  truss: string; trussLeg: string; trussHit: string;
 }
 
 function getPalette(blueprint: boolean): Palette {
@@ -27,6 +29,7 @@ function getPalette(blueprint: boolean): Palette {
         dimLine: "#7d99b6", dimExt: "rgba(140,170,200,.32)",
         dimText: "#bcd0e4", dimTextOp: "#eaf2fb",
         tagFill: "#0a1b2d", tileLbl: "#9fb4ca", hollow: "#0a1b2d",
+        truss: "rgba(120,160,200,.5)", trussLeg: "#9fc0e0", trussHit: "#ff7066",
       }
     : {
         grid: "#eef2f7",
@@ -35,6 +38,7 @@ function getPalette(blueprint: boolean): Palette {
         dimLine: "#41566e", dimExt: "#cfd9e3",
         dimText: "#41566e", dimTextOp: "#12283f",
         tagFill: "#fff", tileLbl: "#41566e", hollow: "#fff",
+        truss: "#9aaabd", trussLeg: "#5a6f88", trussHit: "#d4452e",
       };
 }
 
@@ -50,6 +54,8 @@ export default function Plan() {
   const showDims = useStore((s) => s.showDims);
   const blueprint = useStore((s) => s.blueprint);
   const typeColors = useStore((s) => s.typeColors);
+  const showTrusses = useStore((s) => s.showTrusses);
+  const trussOC = useStore((s) => s.trussOC);
 
   const reduceMotion = useReducedMotion();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -57,6 +63,10 @@ export default function Plan() {
 
   const geo = useMemo(() => computeGeo(width, length), [width, length]);
   const palette = getPalette(blueprint);
+  const trusses = useMemo(
+    () => analyzeTrusses(openings, length, trussOC),
+    [openings, length, trussOC],
+  );
   const totW = geo.DW + geo.oX * 2;
   const totH = geo.DH + geo.oY * 2;
 
@@ -96,8 +106,27 @@ export default function Plan() {
     };
   }, [drag, openings, width, length, geo.oX, geo.oY, geo.scale, update]);
 
+  const hitCount = trusses.hitOpenings.size;
+
   return (
     <div className={`diagram ${blueprint ? "blueprint" : ""}`}>
+      <AnimatePresence initial={false}>
+        {showTrusses && (
+          <motion.div
+            key="truss-status"
+            className={`truss-status no-print ${hitCount ? "warn" : "ok"}`}
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ type: "spring", stiffness: 380, damping: 26 }}
+          >
+            <span className="dot" />
+            {hitCount === 0
+              ? `Clear — trusses ${trussOC}′ OC, nothing hits a truss`
+              : `${hitCount} opening${hitCount > 1 ? "s" : ""} hit a truss (${trussOC}′ OC)`}
+          </motion.div>
+        )}
+      </AnimatePresence>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${totW} ${totH}`}
@@ -125,6 +154,17 @@ export default function Plan() {
           x={geo.oX} y={geo.oY} width={geo.DW} height={geo.DH}
           fill="none" stroke={palette.footHeavy} strokeWidth={2.5}
         />
+
+        {/* trusses on the eave (Left/Right) walls, spaced along the length */}
+        {showTrusses && (
+          <Trusses
+            geo={geo}
+            palette={palette}
+            positions={trusses.positions}
+            hitTrusses={trusses.hitTrusses}
+            reduceMotion={!!reduceMotion}
+          />
+        )}
 
         {/* center label */}
         <text
@@ -175,6 +215,7 @@ export default function Plan() {
               geo={geo}
               palette={palette}
               selected={op.id === selId}
+              hit={showTrusses && trusses.hitOpenings.has(op.id)}
               color={typeColors[op.type]}
               reduceMotion={!!reduceMotion}
               onPointerDown={(e) => {
@@ -217,13 +258,14 @@ function WallLabel({
 }
 
 function Tile({
-  op, i, geo, palette, selected, color, reduceMotion, onPointerDown, dragging,
+  op, i, geo, palette, selected, hit, color, reduceMotion, onPointerDown, dragging,
 }: {
   op: Opening;
   i: number;
   geo: Geo;
   palette: Palette;
   selected: boolean;
+  hit: boolean;
   color: string;
   reduceMotion: boolean;
   onPointerDown: (e: React.PointerEvent) => void;
@@ -273,6 +315,20 @@ function Tile({
           strokeWidth={2}
         />
       )}
+      {/* truss-conflict warning halo */}
+      {hit && (
+        <rect
+          x={g.bx - 6}
+          y={g.by - 6}
+          width={g.bw + 12}
+          height={g.bh + 12}
+          rx={4}
+          fill="none"
+          stroke={palette.trussHit}
+          strokeWidth={2}
+          strokeDasharray="4 3"
+        />
+      )}
       <rect
         x={g.bx}
         y={g.by}
@@ -305,6 +361,58 @@ function Tile({
         {i + 1}
       </text>
     </motion.g>
+  );
+}
+
+/* ── trusses on the eave walls ── */
+
+function Trusses({
+  geo, palette, positions, hitTrusses, reduceMotion,
+}: {
+  geo: Geo;
+  palette: Palette;
+  positions: number[];
+  hitTrusses: Set<number>;
+  reduceMotion: boolean;
+}) {
+  const { oX, oY, DH, scale } = geo;
+  const top = oY;
+  const bot = oY + DH;
+  const legW = 6; // column marker size, px
+
+  return (
+    <g className="trusses" aria-hidden="true">
+      {positions.map((p, idx) => {
+        const x = oX + p * scale;
+        const conflict = hitTrusses.has(idx);
+        const col = conflict ? palette.trussHit : palette.truss;
+        const legCol = conflict ? palette.trussHit : palette.trussLeg;
+        return (
+          <motion.g
+            key={idx}
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scaleY: 0 }}
+            animate={reduceMotion ? { opacity: 1 } : { opacity: 1, scaleY: 1 }}
+            transition={{
+              delay: reduceMotion ? 0 : idx * 0.025,
+              type: "spring",
+              duration: 0.5,
+              bounce: 0.1,
+            }}
+            style={{ transformOrigin: `${x}px ${(top + bot) / 2}px` }}
+          >
+            <line
+              x1={x} y1={top} x2={x} y2={bot}
+              stroke={col}
+              strokeWidth={conflict ? 2 : 1.2}
+              strokeDasharray={conflict ? undefined : "2 5"}
+            />
+            {/* leg / column markers where the truss lands on each eave wall */}
+            <rect x={x - legW / 2} y={top - legW / 2} width={legW} height={legW} fill={legCol} />
+            <rect x={x - legW / 2} y={bot - legW / 2} width={legW} height={legW} fill={legCol} />
+          </motion.g>
+        );
+      })}
+    </g>
   );
 }
 

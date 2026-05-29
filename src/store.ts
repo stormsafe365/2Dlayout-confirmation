@@ -1,10 +1,12 @@
 import { create } from "zustand";
 import type {
   DimDir, Density, Mode, Opening, OpeningTypeKey, WallKey, DocInfo,
+  LegType, TrussOC, Gauge,
 } from "./types";
 import { TYPES, DEFAULT_HEX } from "./constants";
 import { clamp } from "./format";
 import { wallLen } from "./geometry";
+import { autoLeg, autoTrussOC, trussOCAllowed } from "./framing";
 
 interface State {
   /* building */
@@ -13,6 +15,14 @@ interface State {
   eave: number;
   wind: number;
   pitch: string;
+
+  /* framing */
+  legType: LegType;
+  legAuto: boolean;   // follow the height/width rule
+  trussOC: TrussOC;
+  trussAuto: boolean; // follow the width rule
+  gauge: Gauge;
+  showTrusses: boolean;
 
   /* openings */
   openings: Opening[];
@@ -35,6 +45,10 @@ interface State {
 
   /* actions */
   setBuilding: (b: Partial<Pick<State, "width" | "length" | "eave" | "wind" | "pitch">>) => void;
+  setLeg: (t: LegType | "auto") => void;
+  setTrussOC: (oc: TrussOC | "auto") => void;
+  setGauge: (g: Gauge) => void;
+  toggleTrusses: () => void;
   setDoc: (patch: Partial<DocInfo>) => void;
   setNotes: (s: string) => void;
   add: (type: OpeningTypeKey, wall?: WallKey, offset?: number) => Opening;
@@ -83,6 +97,13 @@ const useStore = create<State>((set, get) => ({
   wind: 150,
   pitch: "3:12",
 
+  legType: autoLeg(16, 40),
+  legAuto: true,
+  trussOC: autoTrussOC(40),
+  trussAuto: true,
+  gauge: 14,
+  showTrusses: false,
+
   openings: seedOpenings(),
   selId: null,
   nextId: 7,
@@ -110,8 +131,30 @@ const useStore = create<State>((set, get) => ({
         const off = clamp(o.o, 0, wl - w);
         return { ...o, w, h, o: off };
       });
+      // re-derive framing where the user hasn't overridden it
+      if (next.legAuto) next.legType = autoLeg(next.eave, next.width);
+      if (next.trussAuto) next.trussOC = autoTrussOC(next.width);
+      // 5' OC is never valid past 24' wide — snap down even if overridden
+      if (next.width > 24 && next.trussOC === 5) next.trussOC = 4;
       return next;
     }),
+
+  setLeg: (t) =>
+    set((s) =>
+      t === "auto"
+        ? { legAuto: true, legType: autoLeg(s.eave, s.width) }
+        : { legAuto: false, legType: t },
+    ),
+
+  setTrussOC: (oc) =>
+    set((s) => {
+      if (oc === "auto") return { trussAuto: true, trussOC: autoTrussOC(s.width) };
+      const allowed = trussOCAllowed(s.width);
+      return { trussAuto: false, trussOC: allowed.includes(oc) ? oc : allowed[0] };
+    }),
+
+  setGauge: (g) => set({ gauge: g }),
+  toggleTrusses: () => set((s) => ({ showTrusses: !s.showTrusses })),
 
   setDoc: (patch) => set((s) => ({ doc: { ...s.doc, ...patch } })),
   setNotes: (s) => set({ notes: s }),
@@ -170,6 +213,9 @@ const useStore = create<State>((set, get) => ({
   reset: () =>
     set({
       width: 40, length: 50, eave: 16, wind: 150, pitch: "3:12",
+      legType: autoLeg(16, 40), legAuto: true,
+      trussOC: autoTrussOC(40), trussAuto: true,
+      gauge: 14, showTrusses: false,
       openings: seedOpenings(),
       nextId: 7,
       selId: null,

@@ -1,8 +1,9 @@
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import useStore from "../store";
 import { TYPES } from "../constants";
+import { GAUGE_TUBE, LEG_INFO, trussOCAllowed } from "../framing";
 import { ft } from "../format";
-import type { OpeningTypeKey } from "../types";
+import type { Gauge, LegType, OpeningTypeKey, TrussOC } from "../types";
 import Editor from "./Editor";
 
 const fade: Variants = {
@@ -26,6 +27,15 @@ export default function Panel() {
   const wind = useStore((s) => s.wind);
   const pitch = useStore((s) => s.pitch);
   const setBuilding = useStore((s) => s.setBuilding);
+
+  const legType = useStore((s) => s.legType);
+  const legAuto = useStore((s) => s.legAuto);
+  const setLeg = useStore((s) => s.setLeg);
+  const trussOC = useStore((s) => s.trussOC);
+  const trussAuto = useStore((s) => s.trussAuto);
+  const setTrussOC = useStore((s) => s.setTrussOC);
+  const gauge = useStore((s) => s.gauge);
+  const setGauge = useStore((s) => s.setGauge);
 
   const doc = useStore((s) => s.doc);
   const setDoc = useStore((s) => s.setDoc);
@@ -64,6 +74,62 @@ export default function Panel() {
               spellCheck={false}
             />
           </div>
+        </div>
+      </div>
+
+      <div className="sec">Framing</div>
+      <div className="g2">
+        <div className="fld">
+          <label>Leg type {legAuto && <span className="auto-tag">auto</span>}</label>
+          <div className="inp">
+            <select
+              value={legAuto ? "auto" : legType}
+              onChange={(e) =>
+                setLeg(e.target.value === "auto" ? "auto" : (e.target.value as LegType))
+              }
+            >
+              <option value="auto">Auto · {LEG_INFO[legType].label}</option>
+              <option value="single">Single Legs</option>
+              <option value="double">Double Legs</option>
+              <option value="ladder">Ladder Legs</option>
+            </select>
+          </div>
+        </div>
+        <div className="fld">
+          <label>Truss spacing {trussAuto && <span className="auto-tag">auto</span>}</label>
+          <div className="inp">
+            <select
+              value={trussAuto ? "auto" : String(trussOC)}
+              onChange={(e) =>
+                setTrussOC(e.target.value === "auto" ? "auto" : (+e.target.value as TrussOC))
+              }
+            >
+              <option value="auto">Auto · {trussOC}′ OC</option>
+              {trussOCAllowed(width).map((oc) => (
+                <option key={oc} value={oc}>
+                  {oc}′ OC{oc === 2 ? " (uncommon)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div className="g2">
+        <div className="fld">
+          <label>Framing gauge</label>
+          <div className="inp">
+            <select value={gauge} onChange={(e) => setGauge(+e.target.value as Gauge)}>
+              <option value={14}>14 ga · {GAUGE_TUBE[14]}</option>
+              <option value={12}>12 ga · {GAUGE_TUBE[12]}</option>
+            </select>
+          </div>
+        </div>
+        <div className="fld framing-info">
+          <label>&nbsp;</label>
+          <p className="framing-note">
+            {LEG_INFO[legType].label} ({LEG_INFO[legType].range}) ·{" "}
+            {legAuto ? "follows wall height" : "manual override"}
+          </p>
         </div>
       </div>
 

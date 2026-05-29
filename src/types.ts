@@ -43,3 +43,8 @@ export interface DocInfo {
 export type DimDir = "engineering" | "architectural";
 export type Density = "compact" | "regular" | "comfy";
 export type Mode = "builder" | "approval";
+
+/* framing */
+export type LegType = "single" | "double" | "ladder";
+export type TrussOC = 2 | 4 | 5; // truss spacing, feet on-center
+export type Gauge = 14 | 12;
